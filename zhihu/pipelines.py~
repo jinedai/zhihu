@@ -20,7 +20,7 @@ class UserPipeline(object):
         curTime = datetime.datetime.now()
         try:
             self.cursor.execute(
-                """INSERT IGNORE INTO user (url, name, location, gender, create_at)
+                """INSERT IGNORE INTO users (url, name, location, gender, create_at)
                 VALUES (%s, %s, %s, %s, %s)""",
                 (
                     item['url'],

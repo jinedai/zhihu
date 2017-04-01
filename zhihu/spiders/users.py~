@@ -67,6 +67,7 @@ class UsersSpider(scrapy.Spider):
                 'email': UsersConfig['email'],
                 'password': UsersConfig['password'],
                 '_xsrf': response.meta['_xsrf'],
+                'remember_me': 'true',
                 'captcha': captcha
             },
             meta = {
@@ -111,7 +112,7 @@ class UsersSpider(scrapy.Spider):
     def user_start(self, response):
         #sel_root = response.xpath('//h2[@class="zm-list-content-title"]')
         sel_root = response.xpath('//div[@class="ProfileHeader-main"]')
-        print sel_root
+        print len(sel_root)
         # 判断关注列表是否为空
         if len(sel_root):
             for sel in sel_root:

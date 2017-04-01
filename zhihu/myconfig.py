@@ -1,17 +1,15 @@
 # -*- coding: utf-8 -*-
 UsersConfig = {
-    # 代理
     'proxy': '',
 
-    # 知乎用户名和密码
-    'email': '',
-    'password': '',
+    'email': '749290765@qq.com',
+    'password': '86099830',
 }
 
 DbConfig = {
     # db config
     'user': 'root',
-    'passwd': '123456',
+    'passwd': 'root',
     'db': 'zhihu',
     'host': '127.0.0.1',
 }

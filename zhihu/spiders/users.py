@@ -2,9 +2,12 @@
 import scrapy
 import os
 import time
+import MySQLdb
 from scrapy.selector import Selector
 from zhihu.items import UserItem
 from zhihu.myconfig import UsersConfig
+from zhihu.myconfig import DbConfig
+
 
 class UsersSpider(scrapy.Spider):
     name = 'users'
@@ -19,8 +22,11 @@ class UsersSpider(scrapy.Spider):
             "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/48.0.2564.109 Safari/537.36"
             }
 
-    def __init__(self, url = None):
+    def __init__(self, url= None):
         self.user_url = url
+        self.conn = MySQLdb.connect(user = DbConfig['user'], passwd = DbConfig['passwd'], db = DbConfig['db'], host = DbConfig['host'], charset = 'utf8', use_unicode = True)
+        self.cursor = self.conn.cursor()
+        
 
     def start_requests(self):
         yield scrapy.Request(
@@ -34,11 +40,8 @@ class UsersSpider(scrapy.Spider):
         )
 
     def request_captcha(self, response):
-        # 获取_xsrf值
         _xsrf = response.css('input[name="_xsrf"]::attr(value)').extract()[0]
-        # 获取验证码地址
         captcha_url = 'http://www.zhihu.com/captcha.gif?r=' + str(time.time() * 1000) + '&type=login'
-        # 准备下载验证码
         yield scrapy.Request(
             url = captcha_url,
             headers = self.headers,
@@ -51,12 +54,9 @@ class UsersSpider(scrapy.Spider):
         )
 
     def download_captcha(self, response):
-        # 下载验证码
         with open('captcha.gif', 'wb') as fp:
             fp.write(response.body)
-        # 用软件打开验证码图片
         os.system('start captcha.gif')
-        # 输入验证码
         print 'Please enter captcha: '
         captcha = raw_input()
 
@@ -77,7 +77,6 @@ class UsersSpider(scrapy.Spider):
         )
 
     def request_zhihu(self, response):
-        print response
         yield scrapy.Request(
             url = self.user_url + '/activities',
             headers = self.headers,
@@ -109,73 +108,57 @@ class UsersSpider(scrapy.Spider):
         )
 
     def user_start(self, response):
-        #sel_root = response.xpath('//h2[@class="zm-list-content-title"]')
-        sel_root = response.xpath('//div[@class="ProfileHeader-main"]')
-        print sel_root
-        # 判断关注列表是否为空
+        sel_root = response.xpath('//div[@id="Profile-following"]/div/div[@class="List-item"]')
         if len(sel_root):
             for sel in sel_root:
-                people_url = sel.xpath('a/@href').extract()[0]
+                people_url = sel.xpath('//div[@class="ContentItem-image"]/span/div/div/a/@href').extract()[0]
+                self.cursor.execute("""select id from user where url = %s """, ('https://www.zhihu.com' + people_url))
+                count = self.cursor.fetchall()
+                print count
 
-                yield scrapy.Request(
-                    url = people_url + '/about',
-                    headers = self.headers,
-                    meta = {
-                        'proxy': UsersConfig['proxy'],
-                        'cookiejar': response.meta['cookiejar'],
-                        'from': {
-                            'sign': 'else',
-                            'data': {}
-                        }
-                    },
-                    callback = self.user_item,
-                    dont_filter = True
-                )
+                if not count:
+                    print "aaaaa"
+                    yield scrapy.Request(
+                        url = 'https://www.zhihu.com' + people_url + '/activities',
+                        headers = self.headers,
+                        meta = {
+                            'proxy': UsersConfig['proxy'],
+                            'cookiejar': response.meta['cookiejar'],
+                            'from': {
+                                'sign': 'else',
+                                'data': {}
+                            }
+                        },
+                        callback = self.user_item,
+                        dont_filter = True
+                    )
 
-                yield scrapy.Request(
-                    url = people_url + '/followees',
-                    headers = self.headers,
-                    meta = {
-                        'proxy': UsersConfig['proxy'],
-                        'cookiejar': response.meta['cookiejar'],
-                        'from': {
-                            'sign': 'else',
-                            'data': {}
-                        }
-                    },
-                    callback = self.user_start,
-                    dont_filter = True
-                )
-
-                yield scrapy.Request(
-                    url = people_url + '/followers',
-                    headers = self.headers,
-                    meta = {
-                        'proxy': UsersConfig['proxy'],
-                        'cookiejar': response.meta['cookiejar'],
-                        'from': {
-                            'sign': 'else',
-                            'data': {}
-                        }
-                    },
-                    callback = self.user_start,
-                    dont_filter = True
-                )
+                    yield scrapy.Request(
+                        url = 'https://www.zhihu.com' + people_url + '/followers',
+                        headers = self.headers,
+                        meta = {
+                            'proxy': UsersConfig['proxy'],
+                            'cookiejar': response.meta['cookiejar'],
+                            'from': {
+                                'sign': 'else',
+                                'data': {}
+                            }
+                        },
+                        callback = self.user_start,
+                        dont_filter = True
+                    )
 
     def user_item(self, response):
-        print response
-
-        #sel = response.xpath('//div[@class="ProfileHeader-main"]')
-        sel = Selector(response)
+        sel = response.xpath('//div[@class="ProfileHeader-main"]')
 
         item = UserItem()
-        item['url'] = response.url[:-10]
+        item['url'] = response.url[:-11]
         item['name'] = ''.join(sel.xpath('//span[@class="ProfileHeader-name"]/text()').extract())
         #item['bio'] = value(sel.xpath('//span[@class="bio"]/@title').extract()).encode('utf-8')
         item['location'] = ''.join(sel.xpath('//div[@class="ProfileHeader-detailValue"]/span/text()').extract())
         #item['business'] = value(sel.xpath('//span[contains(@class, "business")]/@title').extract()).encode('utf-8')
-        item['gender'] = 1 if sel.xpath('//div[@class="ProfileHeader-iconWrapper"]/svg[@class="Icon--male"]') else 0
-        #item['avatar'] = sel.xpath('//img[@class="Avatar Avatar--large UserAvatar-inner"]/@src').extract()
+        item['gender'] = 1 if sel.xpath('//div[@class="ProfileHeader-info"]/div[@class="ProfileHeader-infoItem"]/div[@class="ProfileHeader-iconWrapper"]/svg[@class="Icon--male"]') else 0
+        item['avatar'] = sel.xpath('//img[@class="Avatar Avatar--large UserAvatar-inner"]/@src').extract()[0]
         #item['education'] = value(sel.xpath('//span[contains(@class, "education")]/@title').extract()).encode('utf-8')
         #item['major'] = value(sel.xpath('//span[contains(@class, "education-extra")]/@title').extract()).encode('utf-8')
         #item['employment'] = value(sel.xpath('//span[contains(@class, "employment")]/@title').extract()).encode('utf-8')

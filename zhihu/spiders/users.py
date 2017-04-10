@@ -108,15 +108,19 @@ class UsersSpider(scrapy.Spider):
         )
 
     def user_start(self, response):
-        sel_root = response.xpath('//div[@id="Profile-following"]/div/div[@class="List-item"]')
+        sel_root = response.xpath('//div[@class="ContentItem-image"]/span/div/div/a/@href')
         if len(sel_root):
             for sel in sel_root:
-                people_url = sel.xpath('//div[@class="ContentItem-image"]/span/div/div/a/@href').extract()[0]
-                self.cursor.execute("""select id from user where url = %s """, ('https://www.zhihu.com' + people_url))
-                count = self.cursor.fetchall()
+                people_url = sel.extract()
+                data = 'https://www.zhihu.com' + people_url
+                sql = r"select * from `user` where url = '%s'" % (data) 
+                print sql
+
+                self.cursor.execute(sql)
+                count = self.cursor.fetchone()
                 print count
 
-                if not count:
+                if count is None:
                     print "aaaaa"
                     yield scrapy.Request(
                         url = 'https://www.zhihu.com' + people_url + '/activities',
@@ -147,6 +151,8 @@ class UsersSpider(scrapy.Spider):
                         callback = self.user_start,
                         dont_filter = True
                     )
+                else:
+                    continue
 
     def user_item(self, response):
         sel = response.xpath('//div[@class="ProfileHeader-main"]')
@@ -157,7 +163,7 @@ class UsersSpider(scrapy.Spider):
         #item['bio'] = value(sel.xpath('//span[@class="bio"]/@title').extract()).encode('utf-8')
         item['location'] = ''.join(sel.xpath('//div[@class="ProfileHeader-detailValue"]/span/text()').extract())
         #item['business'] = value(sel.xpath('//span[contains(@class, "business")]/@title').extract()).encode('utf-8')
-        item['gender'] = 1 if sel.xpath('//div[@class="ProfileHeader-info"]/div[@class="ProfileHeader-infoItem"]/div[@class="ProfileHeader-iconWrapper"]/svg[@class="Icon--male"]') else 0
+        item['gender'] = 1 if sel.xpath('//div[@class="ProfileHeader-contentBody"]/span/div[@class="ProfileHeader-info"]/div[@class="ProfileHeader-infoItem"]/div[@class="ProfileHeader-iconWrapper"]/svg[@class="Icon Icon--male"]') else 0
         item['avatar'] = sel.xpath('//img[@class="Avatar Avatar--large UserAvatar-inner"]/@src').extract()[0]
         #item['education'] = value(sel.xpath('//span[contains(@class, "education")]/@title').extract()).encode('utf-8')
         #item['major'] = value(sel.xpath('//span[contains(@class, "education-extra")]/@title').extract()).encode('utf-8')

@@ -5,7 +5,6 @@
 # Don't forget to add your pipeline to the ITEM_PIPELINES setting
 # See: http://doc.scrapy.org/en/latest/topics/item-pipeline.html
 import MySQLdb
-import datetime
 from zhihu.myconfig import DbConfig
 
 class UserPipeline(object):
@@ -16,7 +15,6 @@ class UserPipeline(object):
         # self.conn.commit()
 
     def process_item(self, item, spider):
-        curTime = datetime.datetime.now()
         try:
             self.cursor.execute(
                 """INSERT IGNORE INTO user (url, name, location, gender, avatar, create_at)
@@ -27,7 +25,7 @@ class UserPipeline(object):
                     item['location'],
                     item['gender'],
                     item['avatar'],
-                    curTime
+                    item['timestamp']
                 )
             )
             self.conn.commit()

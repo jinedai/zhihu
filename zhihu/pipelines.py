@@ -29,6 +29,7 @@ class UserPipeline(object):
                 )
             )
             self.conn.commit()
+            print 'bbbbbbbbbbbbbbbbb'
         except MySQLdb.Error, e:
             print 'Error %d %s' % (e.args[0], e.args[1])
 

@@ -86,13 +86,16 @@ ITEM_PIPELINES = {
 #HTTPCACHE_STORAGE='scrapy.extensions.httpcache.FilesystemCacheStorage'
 
 # Extra
-DEPTH_LIMIT=10
+DEPTH_LIMIT=10000
 
 SPIDER_MIDDLEWARES = {
    'scrapy_deltafetch.DeltaFetch': 50,
    'scrapy_magicfields.MagicFieldsMiddleware': 51,
 }
 DELTAFETCH_ENABLED = True
+DELTAFETCH_DIR     = "F:\scrapy\scrapy-zhihu-users\zhihu"
+DELTAFETCH_RESET   = 0
+
 MAGICFIELDS_ENABLED = True
 MAGIC_FIELDS = {
     "timestamp": "$time",
